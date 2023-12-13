@@ -14,27 +14,36 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bettercars.R
 import com.example.bettercars.data.CarFactory
+import com.example.bettercars.data.CarsApi
 import com.example.bettercars.domain.Carro
 import com.example.bettercars.ui.adapter.CarAdapter
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
 import org.json.JSONTokener
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.Retrofit.Builder
+import retrofit2.converter.gson.GsonConverterFactory
 import java.net.HttpURLConnection
 import java.net.URL
 
 
 class CarFragment : Fragment() {
 
-    lateinit var lista: RecyclerView
+    lateinit var listaCarro: RecyclerView
     lateinit var btnRecirect: FloatingActionButton
     lateinit var progress: ProgressBar
     lateinit var noInternetImage: ImageView
     lateinit var noInternetText: TextView
+    lateinit var carsApi: CarsApi
 
     var carrosArray: ArrayList<Carro> = ArrayList()
 
@@ -48,16 +57,16 @@ class CarFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupRetrofit()
         setupView(view)
-        initServices()
-        checkConnection(context)
         setupListeners()
     }
 
     override fun onResume() {
         super.onResume()
         if (checkConnection(context)) {
-            initServices()
+            //initServices()
+            getAllCars()
         } else {
             emptyState()
         }
@@ -65,28 +74,25 @@ class CarFragment : Fragment() {
 
     fun emptyState() {
         progress.isVisible = false
-        lista.isVisible = false
+        listaCarro.isVisible = false
         noInternetImage.isVisible = true
         noInternetText.isVisible = true
     }
 
     fun setupView(view: View) {
-        lista = view.findViewById(R.id.rv_info)
+        listaCarro = view.findViewById(R.id.rv_info)
         btnRecirect = view.findViewById(R.id.fab_redirect)
         progress = view.findViewById(R.id.pb_loading)
         noInternetImage = view.findViewById(R.id.iv_empty_state)
         noInternetText = view.findViewById(R.id.tv_no_wifi)
     }
 
-    fun setupList() {
-        val carAdapterList = CarAdapter(carrosArray)
-        lista.apply {
+    fun setupList(lista: List<Carro>) {
+        val carAdapterList = CarAdapter(lista)
+        listaCarro.apply {
             adapter = carAdapterList
             isVisible = true
         }
-        // Essa opção pode ser configurada direto no xml.
-        //lista.layoutManager = LinearLayoutManager(this)
-
     }
 
     fun setupListeners() {
@@ -117,7 +123,37 @@ class CarFragment : Fragment() {
         }
     }
 
-    fun initServices() {
+    fun setupRetrofit() {
+        val builderRetrofit = Retrofit.Builder()
+            .baseUrl("https://diogo7b.github.io/cars/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        carsApi = builderRetrofit.create(CarsApi::class.java)
+    }
+
+    fun getAllCars() {
+        carsApi.getAllCars().enqueue(object : Callback<List<Carro>> {
+            override fun onResponse(call: Call<List<Carro>>, response: Response<List<Carro>>) {
+                if (response.isSuccessful) {
+                    progress.isVisible = false
+                    noInternetImage.isVisible = false
+                    noInternetText.isVisible = false
+                    response.body()?.let {
+                        setupList(it)
+                    }
+                } else {
+                    Toast.makeText(context, "Response Error", Toast.LENGTH_LONG).show()
+                }
+
+            }
+
+            override fun onFailure(call: Call<List<Carro>>, t: Throwable) {
+                Toast.makeText(context, "Response Error", Toast.LENGTH_LONG).show()
+            }
+        })
+    }
+
+/*    fun initServices() {
         val baseUrl: String = "https://diogo7b.github.io/cars/cars.json"
         Task().execute(baseUrl)
         progress.isVisible = true
@@ -180,10 +216,10 @@ class CarFragment : Fragment() {
                 progress.isVisible = false
                 noInternetImage.isVisible = false
                 noInternetText.isVisible = false
-                setupList()
+                //setupList()
             } catch (e: Exception) {
                 Log.e("Error", "Error on update progress")
             }
         }
-    }
+    }*/
 }
