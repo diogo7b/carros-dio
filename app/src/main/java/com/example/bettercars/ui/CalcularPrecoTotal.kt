@@ -1,5 +1,6 @@
 package com.example.bettercars.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -22,9 +23,17 @@ class CalcularPrecoTotal : AppCompatActivity() {
         setContentView(R.layout.activity_calcular_total)
         setupView()
         setupListener()
+        setupCachedResult()
     }
 
-    fun setupView() {
+    private fun setupCachedResult() {
+        val volumeCalculado = getVolumeSharedPref()
+        val valorCalculado = getValorSharedPref()
+        tvVolumeCombustivel.text = volumeCalculado
+        tvValorAPagar.text = valorCalculado
+    }
+
+    private fun setupView() {
         etPrecoCombustivel = findViewById(R.id.et_preço_combustível)
         etDistanciaPerc = findViewById(R.id.et_distancia_perc)
         btnCalcular = findViewById(R.id.btn_calcular)
@@ -33,7 +42,7 @@ class CalcularPrecoTotal : AppCompatActivity() {
         btnVoltar = findViewById((R.id.btn_voltar))
     }
 
-    fun setupListener() {
+    private fun setupListener() {
         btnCalcular.setOnClickListener {
             calcularPrecoTotal()
         }
@@ -43,7 +52,7 @@ class CalcularPrecoTotal : AppCompatActivity() {
         }
     }
 
-    fun calcularPrecoTotal() {
+    private fun calcularPrecoTotal() {
         val precoCombustivel = etPrecoCombustivel.text.toString().toFloat()
         val distanciaAPercorrer = etDistanciaPerc.text.toString().toFloat()
 
@@ -52,6 +61,25 @@ class CalcularPrecoTotal : AppCompatActivity() {
 
         tvVolumeCombustivel.text = volumeCombustivel.toString()
         tvValorAPagar.text = valorAPagar.toString()
+        saveSharedPref(volumeCombustivel, valorAPagar)
     }
 
+    private fun saveSharedPref(volume: Float, valor: Float) {
+        val sharedPref = getPreferences(Context.MODE_PRIVATE) ?: return
+        with(sharedPref.edit()) {
+            putFloat(getString(R.string.saved_volume), volume)
+            putFloat(getString(R.string.saved_valor), valor)
+            apply()
+        }
+    }
+
+    private fun getVolumeSharedPref(): String {
+        val sharedPref = getPreferences(Context.MODE_PRIVATE)
+        return sharedPref.getFloat(getString(R.string.saved_volume), 0.0f).toString()
+    }
+
+    private fun getValorSharedPref(): String {
+        val sharedPref = getPreferences(Context.MODE_PRIVATE)
+        return sharedPref.getFloat(getString(R.string.saved_valor), 0.0f).toString()
+    }
 }

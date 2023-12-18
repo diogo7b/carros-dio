@@ -8,4 +8,7 @@
     <string name="autonomia">Autonomia</string>
     <string name="torque">Torque</string>
     <string name="no_net_text">Ops, sem conexão com internet :(</string>
+    <string name="response_error">Tente novamente mais tarde</string>
+    <string name="saved_volume"> saved_volume</string>
+    <string name="saved_valor"> saved_valor</string>
 </resources>
