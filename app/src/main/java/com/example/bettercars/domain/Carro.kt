@@ -7,4 +7,5 @@ data class Carro(
     val potencia: String,
     val autonomia: String,
     val urlPhoto: String,
+    var isFavorite: Boolean
 )

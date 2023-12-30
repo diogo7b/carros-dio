@@ -1,13 +1,12 @@
 package com.example.bettercars.ui
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -19,22 +18,23 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bettercars.R
-import com.example.bettercars.data.CarFactory
 import com.example.bettercars.data.CarsApi
+import com.example.bettercars.data.local.CarRepository
+import com.example.bettercars.data.local.CarrosContract.CarEntry.COLUMN_NAME_AUTONOMIA
+import com.example.bettercars.data.local.CarrosContract.CarEntry.COLUMN_NAME_POTENCIA
+import com.example.bettercars.data.local.CarrosContract.CarEntry.COLUMN_NAME_PRECO
+import com.example.bettercars.data.local.CarrosContract.CarEntry.COLUMN_NAME_TORQUE
+import com.example.bettercars.data.local.CarrosContract.CarEntry.COLUMN_NAME_URL_PHOTO
+import com.example.bettercars.data.local.CarrosContract.CarEntry.TABLE_NAME
+import com.example.bettercars.data.local.CarsDBHelper
 import com.example.bettercars.domain.Carro
 import com.example.bettercars.ui.adapter.CarAdapter
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import org.json.JSONArray
-import org.json.JSONTokener
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
-import retrofit2.Retrofit.Builder
 import retrofit2.converter.gson.GsonConverterFactory
-import java.net.HttpURLConnection
-import java.net.URL
-
 
 class CarFragment : Fragment() {
 
@@ -44,6 +44,7 @@ class CarFragment : Fragment() {
     lateinit var noInternetImage: ImageView
     lateinit var noInternetText: TextView
     lateinit var carsApi: CarsApi
+    lateinit var btnFavorite: ImageView
 
     var carrosArray: ArrayList<Carro> = ArrayList()
 
@@ -65,7 +66,6 @@ class CarFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (checkConnection(context)) {
-            //initServices()
             getAllCars()
         } else {
             emptyState()
@@ -87,19 +87,22 @@ class CarFragment : Fragment() {
         noInternetText = view.findViewById(R.id.tv_no_wifi)
     }
 
+    fun setupListeners() {
+        btnRecirect.setOnClickListener {
+            startActivity(Intent(context, CalcularPrecoTotal::class.java))
+        }
+
+    }
+
     fun setupList(lista: List<Carro>) {
         val carAdapterList = CarAdapter(lista)
         listaCarro.apply {
             adapter = carAdapterList
             isVisible = true
         }
-    }
-
-    fun setupListeners() {
-        btnRecirect.setOnClickListener {
-            startActivity(Intent(context, CalcularPrecoTotal::class.java))
+        carAdapterList.carItemListener = { carro ->
+            val isSaved = CarRepository(requireContext()).saveIfNotExist(carro)
         }
-
     }
 
     fun checkConnection(context: Context?): Boolean {
@@ -153,73 +156,75 @@ class CarFragment : Fragment() {
         })
     }
 
-/*    fun initServices() {
-        val baseUrl: String = "https://diogo7b.github.io/cars/cars.json"
-        Task().execute(baseUrl)
-        progress.isVisible = true
-    }
-
-    inner class Task : AsyncTask<String, String, String>() {
-
-        override fun doInBackground(vararg url: String?): String {
-            var urlConnection: HttpURLConnection? = null
-            try {
-                var urlBase = URL(url[0])
-                urlConnection = urlBase.openConnection() as HttpURLConnection
-                urlConnection.connectTimeout = 60000
-                urlConnection.readTimeout = 60000
-                urlConnection.setRequestProperty(
-                    "Accept",
-                    "application/json"
-                )
-
-                val responseCode = urlConnection.responseCode
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    var response = urlConnection.inputStream.bufferedReader().use { it.readText() }
-                    publishProgress(response)
-                } else {
-                    Log.e("Error", "Serviço indiponivel ... ")
-                }
-
-            } catch (ex: Exception) {
-                Log.e("Error", "Error to publish")
-            } finally {
-                urlConnection?.disconnect()
-            }
-
-            return ""
+    /*    fun initServices() {
+            val baseUrl: String = "https://diogo7b.github.io/cars/cars.json"
+            Task().execute(baseUrl)
+            progress.isVisible = true
         }
 
-        override fun onProgressUpdate(vararg values: String?) {
-            try {
-                val jsonArray = JSONTokener(values[0]).nextValue() as JSONArray
+        inner class Task : AsyncTask<String, String, String>() {
 
-                for (i in 0 until jsonArray.length()) {
-                    val id = jsonArray.getJSONObject(i).getString("id")
-                    val preco = jsonArray.getJSONObject(i).getString("preco")
-                    val torque = jsonArray.getJSONObject(i).getString("torque")
-                    val potencia = jsonArray.getJSONObject(i).getString("potencia")
-                    val autonomia = jsonArray.getJSONObject(i).getString("autonomia")
-                    val urlPhoto = jsonArray.getJSONObject(i).getString("urlPhoto")
-
-                    val model = Carro(
-                        id = id.toInt(),
-                        preco = preco,
-                        torque = torque,
-                        potencia = potencia,
-                        autonomia = autonomia,
-                        urlPhoto = urlPhoto
+            override fun doInBackground(vararg url: String?): String {
+                var urlConnection: HttpURLConnection? = null
+                try {
+                    var urlBase = URL(url[0])
+                    urlConnection = urlBase.openConnection() as HttpURLConnection
+                    urlConnection.connectTimeout = 60000
+                    urlConnection.readTimeout = 60000
+                    urlConnection.setRequestProperty(
+                        "Accept",
+                        "application/json"
                     )
-                    carrosArray.add(model)
+
+                    val responseCode = urlConnection.responseCode
+
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        var response = urlConnection.inputStream.bufferedReader().use { it.readText() }
+                        publishProgress(response)
+                    } else {
+                        Log.e("Error", "Serviço indiponivel ... ")
+                    }
+
+                } catch (ex: Exception) {
+                    Log.e("Error", "Error to publish")
+                } finally {
+                    urlConnection?.disconnect()
                 }
-                progress.isVisible = false
-                noInternetImage.isVisible = false
-                noInternetText.isVisible = false
-                //setupList()
-            } catch (e: Exception) {
-                Log.e("Error", "Error on update progress")
+
+                return ""
             }
-        }
-    }*/
+
+            override fun onProgressUpdate(vararg values: String?) {
+                try {
+                    val jsonArray = JSONTokener(values[0]).nextValue() as JSONArray
+
+                    for (i in 0 until jsonArray.length()) {
+                        val id = jsonArray.getJSONObject(i).getString("id")
+                        val preco = jsonArray.getJSONObject(i).getString("preco")
+                        val torque = jsonArray.getJSONObject(i).getString("torque")
+                        val potencia = jsonArray.getJSONObject(i).getString("potencia")
+                        val autonomia = jsonArray.getJSONObject(i).getString("autonomia")
+                        val urlPhoto = jsonArray.getJSONObject(i).getString("urlPhoto")
+
+                        val model = Carro(
+                            id = id.toInt(),
+                            preco = preco,
+                            torque = torque,
+                            potencia = potencia,
+                            autonomia = autonomia,
+                            urlPhoto = urlPhoto
+                        )
+                        carrosArray.add(model)
+                    }
+                    progress.isVisible = false
+                    noInternetImage.isVisible = false
+                    noInternetText.isVisible = false
+                    //setupList()
+                } catch (e: Exception) {
+                    Log.e("Error", "Error on update progress")
+                }
+            }
+        }*/
+
+
 }
